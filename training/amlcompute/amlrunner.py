@@ -8,6 +8,7 @@ import io
 import json
 import logging
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -79,11 +80,13 @@ def parse_compute_resource_ids(value: str) -> list[str]:
 def resolve_run_id(training_enabled: str) -> str:
     run_id = os.environ.get("KUNO_RUN_ID", "").strip()
     if run_id:
+        if not re.fullmatch(r"run_[A-Za-z0-9][A-Za-z0-9_.-]{0,123}", run_id):
+            raise AutomationError("KUNO_RUN_ID must start with run_ and be a safe name")
         return run_id
     if training_enabled == "true":
         raise AutomationError(f"Missing required setting KUNO_RUN_ID in {ENV_FILE}")
-    LOGGER.info("KUNO_RUN_ID is not set; using run_id=dry-run")
-    return "dry-run"
+    LOGGER.info("KUNO_RUN_ID is not set; using run_id=run_dry_run")
+    return "run_dry_run"
 
 
 def load_settings() -> dict[str, Any]:
@@ -374,7 +377,9 @@ def put_remote_script(
     put_remote_bytes(sftp, data, remote_path, mode)
 
 
-def training_environment(settings: dict[str, Any]) -> str:
+def training_environment(
+    settings: dict[str, Any], node: dict[str, Any] | None = None
+) -> str:
     values = {
         "KUNO_RUN_ID": settings["run_id"],
         "KUNO_DURABLE_PATH": settings["durable_path"],
@@ -386,6 +391,9 @@ def training_environment(settings: dict[str, Any]) -> str:
         "KUNO_CONFIG_PATH": settings["config_path"],
         "KUNO_CONFIG_HASH": settings["config_hash"],
     }
+    if node is not None:
+        values["KUNO_COMPUTE_ID"] = node["compute_id"]
+        values["KUNO_NODE_ID"] = str(node["node_id"])
     if any("\n" in value or "\r" in value for value in values.values()):
         raise AutomationError("Training settings must not contain newlines")
     return "".join(f"{name}={shlex.quote(value)}\n" for name, value in values.items())
@@ -648,7 +656,7 @@ def bootstrap_node(
             "AZURE_STORAGE_AUTH_TYPE=key\n"
             f"AZURE_STORAGE_ACCESS_KEY={storage_account_key}\n"
         )
-        runtime_environment = training_environment(settings).encode()
+        runtime_environment = training_environment(settings, node).encode()
 
         with client.open_sftp() as sftp:
             put_remote_script(sftp, LOCAL_BOOTSTRAP, REMOTE_BOOTSTRAP, 0o700)

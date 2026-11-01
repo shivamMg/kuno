@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling==1.28.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kuno"
+version = "0.1.0"
+description = "Data-first Kuno language model preparation and training"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "numpy==2.4.2",
+  "pydantic==2.12.5",
+  "PyYAML==6.0.3",
+]
+
+[project.optional-dependencies]
+train = [
+  "accelerate==1.14.0",
+  "torch==2.10.0",
+  "transformers==5.16.1",
+]
+data = [
+  "azure-identity>=1.23,<2",
+  "azure-storage-blob>=12.25,<13",
+  "filelock>=3.20,<4",
+  "datasets==4.6.1",
+  "tokenizers==0.23.1",
+  "transformers==5.16.1",
+]
+eval = [
+  "lm-eval==0.4.11",
+]
+aml = [
+  "paramiko>=3.5,<5",
+  "python-dotenv>=1.0,<2",
+]
+test = [
+  "pytest==9.0.2",
+  "pytest-cov==7.0.0",
+  "ruff==0.15.4",
+  "ty==0.0.24",
+]
+
+[project.scripts]
+kuno-config = "kuno.train.config:config_main"
+kuno-train = "kuno.train.loop:main"
+kuno-prepare = "kuno.data.prepare:main"
+kuno-eval = "kuno.eval.harness:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kuno"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+markers = [
+  "gpu: requires a CUDA GPU",
+  "distributed: requires a multi-process distributed runtime",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+  { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
+]

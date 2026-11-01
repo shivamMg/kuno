@@ -1,0 +1,12 @@
+.git
+.github
+.pytest_cache
+.ruff_cache
+.venv
+**/.env
+**/.state
+**/__pycache__
+**/*.pyc
+tests
+training/amlcompute
+training/configs
