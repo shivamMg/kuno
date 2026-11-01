@@ -1,9 +1,9 @@
 [Unit]
-Description=Baron durable training run
-Requires=baron-blobfuse2.service
-After=baron-blobfuse2.service network-online.target
+Description=Kuno durable training run
+Requires=kuno-blobfuse2.service
+After=kuno-blobfuse2.service network-online.target
 Wants=network-online.target
-ConditionPathExists=/etc/baron-training.env
+ConditionPathExists=/etc/kuno-training.env
 StartLimitIntervalSec=1h
 StartLimitBurst=__MAX_RESTARTS__
 
@@ -11,9 +11,9 @@ StartLimitBurst=__MAX_RESTARTS__
 Type=simple
 User=__SERVICE_USER__
 SupplementaryGroups=docker
-EnvironmentFile=/etc/baron-training.env
+EnvironmentFile=/etc/kuno-training.env
 ExecStart=/usr/local/bin/run-training.sh
-ExecStopPost=-/usr/bin/docker rm -f baron-training
+ExecStopPost=-/usr/bin/docker rm -f kuno-training
 KillMode=control-group
 TimeoutStopSec=120
 Restart=on-failure

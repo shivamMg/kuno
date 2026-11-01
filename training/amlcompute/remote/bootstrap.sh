@@ -11,10 +11,10 @@ NODE_ID="$2"
 SERVICE_USER="$3"
 MOUNT_PATH="$4"
 LOCAL_PATH="$5"
-CACHE_PATH="/var/cache/blobfuse2/baron-training"
-TRAINING_ENV_FILE="/tmp/baron-training.env"
+CACHE_PATH="/var/cache/blobfuse2/kuno-training"
+TRAINING_ENV_FILE="/tmp/kuno-training.env"
 TRAINING_SCRIPT="/tmp/run-training.sh"
-TRAINING_SERVICE="/tmp/baron-training.service"
+TRAINING_SERVICE="/tmp/kuno-training.service"
 
 # Never leave the storage account key or runtime settings behind in /tmp,
 # including on the early-exit validation paths below.
@@ -30,16 +30,16 @@ for required_file in "$TRAINING_ENV_FILE" "$TRAINING_SCRIPT" "$TRAINING_SERVICE"
     exit 1
   fi
 done
-install -o root -g root -m 0600 "$AUTH_ENV_FILE" /etc/baron-storage.env
+install -o root -g root -m 0600 "$AUTH_ENV_FILE" /etc/kuno-storage.env
 rm -f "$AUTH_ENV_FILE"
-install -o root -g root -m 0600 "$TRAINING_ENV_FILE" /etc/baron-training.env
+install -o root -g root -m 0600 "$TRAINING_ENV_FILE" /etc/kuno-training.env
 sed -i 's/\r$//' "$TRAINING_SCRIPT"
 install -o root -g root -m 0755 "$TRAINING_SCRIPT" /usr/local/bin/run-training.sh
 sed \
   -e "s|__SERVICE_USER__|$SERVICE_USER|g" \
   -e "s|__MAX_RESTARTS__|5|g" \
-  "$TRAINING_SERVICE" >/etc/systemd/system/baron-training.service
-chmod 0644 /etc/systemd/system/baron-training.service
+  "$TRAINING_SERVICE" >/etc/systemd/system/kuno-training.service
+chmod 0644 /etc/systemd/system/kuno-training.service
 rm -f "$TRAINING_ENV_FILE" "$TRAINING_SCRIPT" "$TRAINING_SERVICE"
 
 if ! command -v blobfuse2 >/dev/null 2>&1; then
@@ -61,13 +61,13 @@ install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 0755 "$MOUNT_PATH" "$CACHE_P
 grep -qxF user_allow_other /etc/fuse.conf || echo user_allow_other >> /etc/fuse.conf
 
 # Remove the retired heartbeat service before remounting storage.
-systemctl disable --now baron-sanity.service 2>/dev/null || true
-rm -f /etc/systemd/system/baron-sanity.service /usr/local/bin/baron-sanity-heartbeat
+systemctl disable --now kuno-sanity.service 2>/dev/null || true
+rm -f /etc/systemd/system/kuno-sanity.service /usr/local/bin/kuno-sanity-heartbeat
 # Stop the training unit and reap any container that outlived it; otherwise the
 # container keeps the bind mount busy and the unmount below fails with EBUSY.
-systemctl stop baron-training.service 2>/dev/null || true
-docker rm -f baron-training >/dev/null 2>&1 || true
-systemctl stop baron-blobfuse2.service 2>/dev/null || true
+systemctl stop kuno-training.service 2>/dev/null || true
+docker rm -f kuno-training >/dev/null 2>&1 || true
+systemctl stop kuno-blobfuse2.service 2>/dev/null || true
 if mountpoint -q "$MOUNT_PATH"; then
   fusermount3 -u "$MOUNT_PATH"
 fi
@@ -77,16 +77,16 @@ if find "$MOUNT_PATH" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
   exit 1
 fi
 
-cat >/etc/systemd/system/baron-blobfuse2.service <<EOF
+cat >/etc/systemd/system/kuno-blobfuse2.service <<EOF
 [Unit]
-Description=Baron training Azure Blob Storage mount
+Description=Kuno training Azure Blob Storage mount
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=simple
 User=$SERVICE_USER
-EnvironmentFile=/etc/baron-storage.env
+EnvironmentFile=/etc/kuno-storage.env
 ExecStart=/usr/bin/blobfuse2 mount $MOUNT_PATH --tmp-path=$CACHE_PATH --allow-other --foreground=true --log-type=syslog --log-level=LOG_WARNING
 ExecStop=/bin/fusermount3 -u $MOUNT_PATH
 Restart=always
@@ -97,15 +97,15 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable baron-blobfuse2.service baron-training.service
-systemctl start baron-blobfuse2.service
+systemctl enable kuno-blobfuse2.service kuno-training.service
+systemctl start kuno-blobfuse2.service
 
 for _ in {1..30}; do
   mountpoint -q "$MOUNT_PATH" && break
   sleep 1
 done
 mountpoint -q "$MOUNT_PATH"
-probe_dir="$MOUNT_PATH/.baron-probes"
+probe_dir="$MOUNT_PATH/.kuno-probes"
 probe_path="$probe_dir/bootstrap-${NODE_ID}-$$"
 probe_content="node=$NODE_ID status=ok"
 install -d -m 0755 "$probe_dir"
@@ -115,7 +115,7 @@ mountpoint -q "$MOUNT_PATH"
 [[ "$(cat "$probe_path")" == "$probe_content" ]]
 rm -f "$probe_path"
 rmdir "$probe_dir" 2>/dev/null || true
-systemctl reset-failed baron-training.service
-systemctl restart baron-training.service
+systemctl reset-failed kuno-training.service
+systemctl restart kuno-training.service
 
 echo "BlobFuse2 and training services installed; storage probe passed."

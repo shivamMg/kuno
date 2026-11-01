@@ -1,6 +1,6 @@
 # AML compute operations
 
-This directory contains the tools used to run Baron training on Azure Machine Learning compute nodes. The controller finds an available node, prepares storage and services, starts training when enabled, and reports progress.
+This directory contains the tools used to run Kuno training on Azure Machine Learning compute nodes. The controller finds an available node, prepares storage and services, starts training when enabled, and reports progress.
 
 ## Main files
 
@@ -23,7 +23,7 @@ Set `AML_COMPUTE_RESOURCE_IDS` to a comma-separated list of AML compute resource
 
 AML may reimage a node while retaining its public endpoint. When the host key changes for a node returned by the authenticated ARM discovery API, the runner removes only that endpoint's stale key and retries once, then saves the replacement key.
 
-Set `BARON_IMAGE` to an immutable image digest. If the image may not already exist on a replacement node, configure `ACR_USERNAME` and `ACR_PASSWORD`; the runner uses them through a temporary Docker configuration to pull the image and removes that configuration before starting the service.
+Set `KUNO_IMAGE` to an immutable image digest. If the image may not already exist on a replacement node, configure `ACR_USERNAME` and `ACR_PASSWORD`; the runner uses them through a temporary Docker configuration to pull the image and removes that configuration before starting the service.
 
 ## Run
 
@@ -51,16 +51,16 @@ The logs include both the compute name and node ID. Logs are written to the term
 
 ## Storage and credentials
 
-Training data is mounted with BlobFuse2 at `BARON_DURABLE_PATH` (`/mnt/baron-training` by default), and node-local scratch lives at `BARON_LOCAL_PATH` (`/mnt/baron-local` by default). Both directories are created by `bootstrap.sh` and owned by the service user. The runner checks the mount before training starts and repairs it when needed.
+Training data is mounted with BlobFuse2 at `KUNO_DURABLE_PATH` (`/mnt/kuno-training` by default), and node-local scratch lives at `KUNO_LOCAL_PATH` (`/mnt/kuno-local` by default). Both directories are created by `bootstrap.sh` and owned by the service user. The runner checks the mount before training starts and repairs it when needed.
 
-The storage account key is kept in `/etc/baron-storage.env` on the node with permissions limited to root. It is not passed to the training container or written to the logs.
+The storage account key is kept in `/etc/kuno-storage.env` on the node with permissions limited to root. It is not passed to the training container or written to the logs.
 
-ACR credentials remain in the controller's local `.env`. They are not copied into `/etc/baron-training.env` or retained on the node after an image pull.
+ACR credentials remain in the controller's local `.env`. They are not copied into `/etc/kuno-training.env` or retained on the node after an image pull.
 
 ## Training behavior
 
-Set `BARON_TRAINING_ENABLED=true` to run real training. When it is `false` or not set, the runner performs a storage dry run instead.
+Set `KUNO_TRAINING_ENABLED=true` to run real training. When it is `false` or not set, the runner performs a storage dry run instead.
 
-`BARON_RUN_ID` is required for real training. A dry run uses `dry-run` when no run ID is set.
+`KUNO_RUN_ID` is required for real training. A dry run uses `dry-run` when no run ID is set.
 
 Temporary failures restart the same run. Fatal failures create `runs/<run-id>/HALT.json` and stop restarting. Run state is reported in `runs/<run-id>/status.json`, which records `running`, `completed`, `retryable`, or `fatal`.

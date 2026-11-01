@@ -22,12 +22,12 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 ENV_FILE = BASE_DIR / ".env"
-REMOTE_BOOTSTRAP = "/tmp/baron-bootstrap.sh"
+REMOTE_BOOTSTRAP = "/tmp/kuno-bootstrap.sh"
 LOCAL_BOOTSTRAP = BASE_DIR / "remote" / "bootstrap.sh"
 REMOTE_TRAINING_SCRIPT = "/tmp/run-training.sh"
 LOCAL_TRAINING_SCRIPT = BASE_DIR / "remote" / "run-training.sh"
-REMOTE_TRAINING_SERVICE = "/tmp/baron-training.service"
-LOCAL_TRAINING_SERVICE = BASE_DIR / "remote" / "baron-training.service"
+REMOTE_TRAINING_SERVICE = "/tmp/kuno-training.service"
+LOCAL_TRAINING_SERVICE = BASE_DIR / "remote" / "kuno-training.service"
 STATE_DIR = BASE_DIR / ".state"
 KNOWN_HOSTS = STATE_DIR / "known_hosts"
 LOG_FILE = STATE_DIR / "amlrunner.log"
@@ -35,7 +35,7 @@ SELECTED_NODE_FILE = STATE_DIR / "selected-node.json"
 
 AML_API_VERSION = "2024-10-01"
 STORAGE_API_VERSION = "2023-05-01"
-LOGGER = logging.getLogger("baron.amlrunner")
+LOGGER = logging.getLogger("kuno.amlrunner")
 
 
 class AutomationError(RuntimeError):
@@ -77,12 +77,12 @@ def parse_compute_resource_ids(value: str) -> list[str]:
 
 
 def resolve_run_id(training_enabled: str) -> str:
-    run_id = os.environ.get("BARON_RUN_ID", "").strip()
+    run_id = os.environ.get("KUNO_RUN_ID", "").strip()
     if run_id:
         return run_id
     if training_enabled == "true":
-        raise AutomationError(f"Missing required setting BARON_RUN_ID in {ENV_FILE}")
-    LOGGER.info("BARON_RUN_ID is not set; using run_id=dry-run")
+        raise AutomationError(f"Missing required setting KUNO_RUN_ID in {ENV_FILE}")
+    LOGGER.info("KUNO_RUN_ID is not set; using run_id=dry-run")
     return "dry-run"
 
 
@@ -90,11 +90,11 @@ def load_settings() -> dict[str, Any]:
     load_dotenv(ENV_FILE)
     ssh_user = required_env("AML_SSH_USER")
     compute_ids = required_env("AML_COMPUTE_RESOURCE_IDS")
-    training_enabled = os.environ.get("BARON_TRAINING_ENABLED", "false").strip().lower()
+    training_enabled = os.environ.get("KUNO_TRAINING_ENABLED", "false").strip().lower()
     registry_username = os.environ.get("ACR_USERNAME", "").strip()
     registry_password = os.environ.get("ACR_PASSWORD", "")
     if training_enabled not in {"true", "false"}:
-        raise AutomationError("BARON_TRAINING_ENABLED must be true or false")
+        raise AutomationError("KUNO_TRAINING_ENABLED must be true or false")
     if bool(registry_username) != bool(registry_password):
         raise AutomationError(
             "ACR_USERNAME and ACR_PASSWORD must be configured together"
@@ -109,22 +109,22 @@ def load_settings() -> dict[str, Any]:
         "ssh_password": required_env("AML_SSH_PASSWORD"),
         "run_id": resolve_run_id(training_enabled),
         "durable_path": os.environ.get(
-            "BARON_DURABLE_PATH", "/mnt/baron-training"
+            "KUNO_DURABLE_PATH", "/mnt/kuno-training"
         ).strip(),
-        "local_path": os.environ.get("BARON_LOCAL_PATH", "/mnt/baron-local").strip(),
-        "service_user": os.environ.get("BARON_SERVICE_USER", ssh_user).strip(),
+        "local_path": os.environ.get("KUNO_LOCAL_PATH", "/mnt/kuno-local").strip(),
+        "service_user": os.environ.get("KUNO_SERVICE_USER", ssh_user).strip(),
         "training_enabled": training_enabled,
-        "dry_run_steps": os.environ.get("BARON_DRY_RUN_STEPS", "3").strip(),
+        "dry_run_steps": os.environ.get("KUNO_DRY_RUN_STEPS", "3").strip(),
         "dry_run_interval": os.environ.get(
-            "BARON_DRY_RUN_INTERVAL_SECONDS", "1"
+            "KUNO_DRY_RUN_INTERVAL_SECONDS", "1"
         ).strip(),
-        "image": required_env("BARON_IMAGE"),
+        "image": required_env("KUNO_IMAGE"),
         "registry_username": registry_username,
         "registry_password": registry_password,
-        "config_path": os.environ.get("BARON_CONFIG_PATH", "").strip(),
-        "config_hash": os.environ.get("BARON_CONFIG_HASH", "").strip(),
+        "config_path": os.environ.get("KUNO_CONFIG_PATH", "").strip(),
+        "config_hash": os.environ.get("KUNO_CONFIG_HASH", "").strip(),
         "progress_timeout": os.environ.get(
-            "BARON_PROGRESS_TIMEOUT_SECONDS", "600"
+            "KUNO_PROGRESS_TIMEOUT_SECONDS", "600"
         ).strip(),
     }
 
@@ -376,15 +376,15 @@ def put_remote_script(
 
 def training_environment(settings: dict[str, Any]) -> str:
     values = {
-        "BARON_RUN_ID": settings["run_id"],
-        "BARON_DURABLE_PATH": settings["durable_path"],
-        "BARON_LOCAL_PATH": settings["local_path"],
-        "BARON_TRAINING_ENABLED": settings["training_enabled"],
-        "BARON_DRY_RUN_STEPS": settings["dry_run_steps"],
-        "BARON_DRY_RUN_INTERVAL_SECONDS": settings["dry_run_interval"],
-        "BARON_IMAGE": settings["image"],
-        "BARON_CONFIG_PATH": settings["config_path"],
-        "BARON_CONFIG_HASH": settings["config_hash"],
+        "KUNO_RUN_ID": settings["run_id"],
+        "KUNO_DURABLE_PATH": settings["durable_path"],
+        "KUNO_LOCAL_PATH": settings["local_path"],
+        "KUNO_TRAINING_ENABLED": settings["training_enabled"],
+        "KUNO_DRY_RUN_STEPS": settings["dry_run_steps"],
+        "KUNO_DRY_RUN_INTERVAL_SECONDS": settings["dry_run_interval"],
+        "KUNO_IMAGE": settings["image"],
+        "KUNO_CONFIG_PATH": settings["config_path"],
+        "KUNO_CONFIG_HASH": settings["config_hash"],
     }
     if any("\n" in value or "\r" in value for value in values.values()):
         raise AutomationError("Training settings must not contain newlines")
@@ -414,9 +414,9 @@ def ensure_remote_image(
         )
     registry, separator, _ = image.partition("/")
     if not separator:
-        raise AutomationError("BARON_IMAGE must include a registry hostname")
+        raise AutomationError("KUNO_IMAGE must include a registry hostname")
 
-    auth_dir = f"/tmp/baron-docker-auth.{uuid.uuid4().hex}"
+    auth_dir = f"/tmp/kuno-docker-auth.{uuid.uuid4().hex}"
     create_code, _, create_error = remote_command(
         client,
         "install -d -m 0700 " + shlex.quote(auth_dir),
@@ -534,8 +534,8 @@ def observe_training(
     read_progress: bool = True,
 ) -> dict[str, Any]:
     state_script = (
-        "if ! systemctl cat baron-training.service >/dev/null 2>&1; then "
-        "printf missing; elif systemctl is-active --quiet baron-training.service; "
+        "if ! systemctl cat kuno-training.service >/dev/null 2>&1; then "
+        "printf missing; elif systemctl is-active --quiet kuno-training.service; "
         "then printf active; else printf inactive; fi"
     )
     _, service_state, _ = remote_command(
@@ -583,7 +583,7 @@ def training_journal(node: dict[str, Any], settings: dict[str, Any]) -> str:
     with connect(node, settings) as client:
         _, output, _ = remote_command(
             client,
-            "sudo -S -p '' -- journalctl -u baron-training.service "
+            "sudo -S -p '' -- journalctl -u kuno-training.service "
             "-n 80 --no-pager",
             stdin_text=sudo_password(settings),
             timeout=60,
@@ -599,7 +599,7 @@ def inspect_node(
             client,
             "sudo -S -p '' -- bash -c "
             + shlex.quote(
-                "systemctl is-active --quiet baron-blobfuse2.service "
+                "systemctl is-active --quiet kuno-blobfuse2.service "
                 f"&& mountpoint -q {shlex.quote(settings['durable_path'])}"
             ),
             stdin_text=sudo_password(settings),
@@ -610,9 +610,9 @@ def inspect_node(
             client,
             "sudo -S -p '' -- bash -c "
             + shlex.quote(
-                "test -r /etc/baron-training.env && "
-                ". /etc/baron-training.env && "
-                f"test \"$BARON_RUN_ID\" = {shlex.quote(settings['run_id'])}"
+                "test -r /etc/kuno-training.env && "
+                ". /etc/kuno-training.env && "
+                f"test \"$KUNO_RUN_ID\" = {shlex.quote(settings['run_id'])}"
             ),
             stdin_text=sudo_password(settings),
             timeout=60,
@@ -659,15 +659,15 @@ def bootstrap_node(
                 sftp, LOCAL_TRAINING_SERVICE, REMOTE_TRAINING_SERVICE, 0o600
             )
             put_remote_bytes(
-                sftp, auth_environment.encode(), "/tmp/baron-storage.env", 0o600
+                sftp, auth_environment.encode(), "/tmp/kuno-storage.env", 0o600
             )
             put_remote_bytes(
-                sftp, runtime_environment, "/tmp/baron-training.env", 0o600
+                sftp, runtime_environment, "/tmp/kuno-training.env", 0o600
             )
 
         arguments = [
             REMOTE_BOOTSTRAP,
-            "/tmp/baron-storage.env",
+            "/tmp/kuno-storage.env",
             str(node["node_id"]),
             settings["service_user"],
             settings["durable_path"],
@@ -688,7 +688,7 @@ def bootstrap_node(
 
         verify = (
             "set -e; "
-            "systemctl is-active baron-blobfuse2.service; "
+            "systemctl is-active kuno-blobfuse2.service; "
             f"mountpoint -q {shlex.quote(settings['durable_path'])}"
         )
         deadline = time.monotonic() + 45
@@ -705,7 +705,7 @@ def bootstrap_node(
             if time.monotonic() >= deadline:
                 _, logs, _ = remote_command(
                     client,
-                    "sudo -S -p '' -- journalctl -u baron-blobfuse2 "
+                    "sudo -S -p '' -- journalctl -u kuno-blobfuse2 "
                     "-n 80 --no-pager",
                     stdin_text=sudo_password(settings),
                     timeout=60,
@@ -725,15 +725,15 @@ def stop_node(node: dict[str, Any], settings: dict[str, Any]) -> None:
     durable_path = shlex.quote(settings["durable_path"])
     stop_script = (
         "set -e; "
-        "if systemctl cat baron-training.service >/dev/null 2>&1; then "
-        "systemctl disable --now baron-training.service; fi; "
-        "docker rm -f baron-training >/dev/null 2>&1 || true; "
-        "if systemctl cat baron-blobfuse2.service >/dev/null 2>&1; then "
-        "systemctl disable --now baron-blobfuse2.service; fi; "
+        "if systemctl cat kuno-training.service >/dev/null 2>&1; then "
+        "systemctl disable --now kuno-training.service; fi; "
+        "docker rm -f kuno-training >/dev/null 2>&1 || true; "
+        "if systemctl cat kuno-blobfuse2.service >/dev/null 2>&1; then "
+        "systemctl disable --now kuno-blobfuse2.service; fi; "
         f"if mountpoint -q {durable_path}; then "
         f"fusermount3 -u {durable_path}; fi; "
-        "! systemctl is-active --quiet baron-training.service; "
-        "! systemctl is-active --quiet baron-blobfuse2.service; "
+        "! systemctl is-active --quiet kuno-training.service; "
+        "! systemctl is-active --quiet kuno-blobfuse2.service; "
         f"! mountpoint -q {durable_path}"
     )
     with connect(node, settings) as client:
@@ -849,14 +849,14 @@ def reconcile_once(
     if not inspection["storage_healthy"]:
         raise AutomationError("durable storage mount remained unhealthy after bootstrap")
     if not inspection["owns_run"]:
-        raise AutomationError("baron-training.service does not own the configured run")
+        raise AutomationError("kuno-training.service does not own the configured run")
     if not observation["installed"]:
-        raise AutomationError("baron-training.service was not installed by bootstrap")
+        raise AutomationError("kuno-training.service was not installed by bootstrap")
     if (
         not observation["active"]
         and observation["status"] not in {"completed", "fatal"}
     ):
-        raise AutomationError("baron-training.service did not become active")
+        raise AutomationError("kuno-training.service did not become active")
     return node, observation
 
 
@@ -909,9 +909,9 @@ def main() -> int:
     try:
         progress_timeout = int(settings["progress_timeout"])
     except ValueError as exc:
-        raise AutomationError("BARON_PROGRESS_TIMEOUT_SECONDS must be an integer") from exc
+        raise AutomationError("KUNO_PROGRESS_TIMEOUT_SECONDS must be an integer") from exc
     if progress_timeout <= 0:
-        raise AutomationError("BARON_PROGRESS_TIMEOUT_SECONDS must be positive")
+        raise AutomationError("KUNO_PROGRESS_TIMEOUT_SECONDS must be positive")
     while True:
         try:
             current_node, observation = reconcile_once(settings, last_node)

@@ -3,39 +3,39 @@ set -Eeuo pipefail
 
 RETRYABLE_EXIT=75
 FATAL_EXIT=78
-TRAINING_ENABLED="${BARON_TRAINING_ENABLED:-false}"
+TRAINING_ENABLED="${KUNO_TRAINING_ENABLED:-false}"
 
 if [[ "$TRAINING_ENABLED" != "true" && "$TRAINING_ENABLED" != "false" ]]; then
-  printf 'baron-training: BARON_TRAINING_ENABLED must be true or false\n' >&2
+  printf 'kuno-training: KUNO_TRAINING_ENABLED must be true or false\n' >&2
   exit "$FATAL_EXIT"
 fi
 [[ "$TRAINING_ENABLED" == "true" ]] && DRY_RUN=false || DRY_RUN=true
 
-: "${BARON_RUN_ID:?BARON_RUN_ID is required}"
-: "${BARON_DURABLE_PATH:?BARON_DURABLE_PATH is required}"
-: "${BARON_IMAGE:?BARON_IMAGE is required}"
+: "${KUNO_RUN_ID:?KUNO_RUN_ID is required}"
+: "${KUNO_DURABLE_PATH:?KUNO_DURABLE_PATH is required}"
+: "${KUNO_IMAGE:?KUNO_IMAGE is required}"
 if [[ "$DRY_RUN" != "true" ]]; then
-  : "${BARON_LOCAL_PATH:?BARON_LOCAL_PATH is required}"
-  : "${BARON_CONFIG_PATH:?BARON_CONFIG_PATH is required}"
+  : "${KUNO_LOCAL_PATH:?KUNO_LOCAL_PATH is required}"
+  : "${KUNO_CONFIG_PATH:?KUNO_CONFIG_PATH is required}"
 fi
 
-NUM_PROCESSES="${BARON_NUM_PROCESSES:-8}"
-MIN_SCRATCH_GB="${BARON_MIN_SCRATCH_GB:-100}"
+NUM_PROCESSES="${KUNO_NUM_PROCESSES:-8}"
+MIN_SCRATCH_GB="${KUNO_MIN_SCRATCH_GB:-100}"
 # Fixed name so the unit's ExecStopPost can reap a container that outlives the
 # docker client, and so a restart cannot run two containers for the same run.
-CONTAINER_NAME="${BARON_CONTAINER_NAME:-baron-training}"
+CONTAINER_NAME="${KUNO_CONTAINER_NAME:-kuno-training}"
 CHILD_PID=""
 
 log() {
-  printf 'baron-training: %s\n' "$*" >&2
+  printf 'kuno-training: %s\n' "$*" >&2
 }
 
 halt_report() {
   local reason="$1"
-  local run_dir="$BARON_DURABLE_PATH/runs/$BARON_RUN_ID"
+  local run_dir="$KUNO_DURABLE_PATH/runs/$KUNO_RUN_ID"
   local pending="$run_dir/.HALT.$$.json"
   install -d -m 0755 "$run_dir" || return 1
-  python3 - "$pending" "$BARON_RUN_ID" "$reason" <<'PY' || return 1
+  python3 - "$pending" "$KUNO_RUN_ID" "$reason" <<'PY' || return 1
 import json
 import sys
 from datetime import datetime, timezone
@@ -56,10 +56,10 @@ PY
 
 write_status() {
   local status="$1" reason="${2:-}" step="${3:-}" dry_run="${4:-false}"
-  local run_dir="$BARON_DURABLE_PATH/runs/$BARON_RUN_ID"
+  local run_dir="$KUNO_DURABLE_PATH/runs/$KUNO_RUN_ID"
   local pending="$run_dir/.status.$$.json"
   install -d -m 0755 "$run_dir" || return 1
-  python3 - "$pending" "$BARON_RUN_ID" "$status" "$reason" "$step" "$dry_run" <<'PY' || return 1
+  python3 - "$pending" "$KUNO_RUN_ID" "$status" "$reason" "$step" "$dry_run" <<'PY' || return 1
 import json
 import sys
 from datetime import datetime, timezone
@@ -113,14 +113,14 @@ code_in_list() {
 }
 
 check_image() {
-  [[ "$BARON_IMAGE" =~ @sha256:[[:xdigit:]]{64}$ ]] \
-    || fatal_failure "BARON_IMAGE is not an exact image digest"
+  [[ "$KUNO_IMAGE" =~ @sha256:[[:xdigit:]]{64}$ ]] \
+    || fatal_failure "KUNO_IMAGE is not an exact image digest"
   command -v docker >/dev/null 2>&1 \
     || retryable_failure "docker is unavailable"
   local digests
-  digests="$(docker image inspect --format '{{index .RepoDigests 0}}' "$BARON_IMAGE" 2>/dev/null)" \
+  digests="$(docker image inspect --format '{{index .RepoDigests 0}}' "$KUNO_IMAGE" 2>/dev/null)" \
     || retryable_failure "immutable image is not available locally"
-  printf '%s\n' "$digests" | grep -Fx "$BARON_IMAGE" >/dev/null \
+  printf '%s\n' "$digests" | grep -Fx "$KUNO_IMAGE" >/dev/null \
     || fatal_failure "local image digest does not match desired image"
 }
 
@@ -142,25 +142,25 @@ check_gpu() {
 
 check_storage() {
   command -v mountpoint >/dev/null 2>&1 || retryable_failure "mountpoint is unavailable"
-  mountpoint -q "$BARON_DURABLE_PATH" \
+  mountpoint -q "$KUNO_DURABLE_PATH" \
     || retryable_failure "durable BlobFuse path is not mounted"
-  [[ -r "$BARON_DURABLE_PATH" && -d "$BARON_DURABLE_PATH" ]] \
+  [[ -r "$KUNO_DURABLE_PATH" && -d "$KUNO_DURABLE_PATH" ]] \
     || retryable_failure "durable BlobFuse path is not readable"
 }
 
 check_scratch() {
-  install -d -m 0755 "$BARON_LOCAL_PATH" \
+  install -d -m 0755 "$KUNO_LOCAL_PATH" \
     || retryable_failure "unable to create local scratch path"
   command -v findmnt >/dev/null 2>&1 \
     || retryable_failure "findmnt is unavailable"
-  mountpoint -q "$BARON_LOCAL_PATH" \
+  mountpoint -q "$KUNO_LOCAL_PATH" \
     && retryable_failure "local scratch path must be node-local"
   local fstype available required
-  fstype="$(findmnt -T "$BARON_LOCAL_PATH" -n -o FSTYPE 2>/dev/null || true)"
+  fstype="$(findmnt -T "$KUNO_LOCAL_PATH" -n -o FSTYPE 2>/dev/null || true)"
   case "$fstype" in
     fuse*|nfs*|cifs|blobfuse*) retryable_failure "local scratch is on $fstype" ;;
   esac
-  available="$(df -Pk "$BARON_LOCAL_PATH" | awk 'NR==2 {print $4}')"
+  available="$(df -Pk "$KUNO_LOCAL_PATH" | awk 'NR==2 {print $4}')"
   required="$((MIN_SCRATCH_GB * 1024 * 1024))"
   [[ "$available" =~ ^[0-9]+$ && "$available" -ge "$required" ]] \
     || retryable_failure "insufficient local scratch capacity"
@@ -184,28 +184,28 @@ launch_container() {
     docker run --rm
     --name "$CONTAINER_NAME"
     --user "$(id -u):$(id -g)"
-    -e "BARON_RUN_ID=$BARON_RUN_ID"
-    -e "BARON_TRAINING_ENABLED=$TRAINING_ENABLED"
-    -e "BARON_DURABLE_PATH=/mnt/baron-training"
-    -e "BARON_CONFIG_PATH=${BARON_CONFIG_PATH:-/mnt/baron-training}"
-    -v "$BARON_DURABLE_PATH:/mnt/baron-training"
+    -e "KUNO_RUN_ID=$KUNO_RUN_ID"
+    -e "KUNO_TRAINING_ENABLED=$TRAINING_ENABLED"
+    -e "KUNO_DURABLE_PATH=/mnt/kuno-training"
+    -e "KUNO_CONFIG_PATH=${KUNO_CONFIG_PATH:-/mnt/kuno-training}"
+    -v "$KUNO_DURABLE_PATH:/mnt/kuno-training"
   )
   if [[ "$DRY_RUN" == "true" ]]; then
     command+=(
       --network none
-      -e "BARON_DRY_RUN_STEPS=${BARON_DRY_RUN_STEPS:-3}"
-      -e "BARON_DRY_RUN_INTERVAL_SECONDS=${BARON_DRY_RUN_INTERVAL_SECONDS:-1}"
+      -e "KUNO_DRY_RUN_STEPS=${KUNO_DRY_RUN_STEPS:-3}"
+      -e "KUNO_DRY_RUN_INTERVAL_SECONDS=${KUNO_DRY_RUN_INTERVAL_SECONDS:-1}"
     )
   else
     command+=(
       --gpus all --network host --ipc host --shm-size=16g
-      -e "BARON_NUM_PROCESSES=$NUM_PROCESSES"
-      -e "BARON_CONFIG_HASH=${BARON_CONFIG_HASH:-}"
-      -v "$BARON_LOCAL_PATH:/mnt/baron-local"
+      -e "KUNO_NUM_PROCESSES=$NUM_PROCESSES"
+      -e "KUNO_CONFIG_HASH=${KUNO_CONFIG_HASH:-}"
+      -v "$KUNO_LOCAL_PATH:/mnt/kuno-local"
     )
   fi
-  command+=("$BARON_IMAGE")
-  log "starting immutable image $BARON_IMAGE"
+  command+=("$KUNO_IMAGE")
+  log "starting immutable image $KUNO_IMAGE"
   "${command[@]}" &
   CHILD_PID=$!
   wait "$CHILD_PID"
@@ -217,7 +217,7 @@ main() {
   if [[ "$DRY_RUN" != "true" ]]; then
     check_gpu
     check_scratch
-    verify_hash "${BARON_CONFIG_PATH:-}" "${BARON_CONFIG_HASH:-}"
+    verify_hash "${KUNO_CONFIG_PATH:-}" "${KUNO_CONFIG_HASH:-}"
   fi
   local code
   if [[ "$DRY_RUN" != "true" ]]; then
@@ -236,13 +236,13 @@ main() {
       return 0
       ;;
     *)
-      if code_in_list "$code" "${BARON_RETRYABLE_EXIT_CODES:-75,137,143}"; then
+      if code_in_list "$code" "${KUNO_RETRYABLE_EXIT_CODES:-75,137,143}"; then
         write_status "retryable" "container exited with status $code" \
           || log "unable to record retryable status"
         return "$RETRYABLE_EXIT"
       fi
       local reason
-      if code_in_list "$code" "${BARON_FATAL_EXIT_CODES:-78}"; then
+      if code_in_list "$code" "${KUNO_FATAL_EXIT_CODES:-78}"; then
         reason="container exited with fatal status $code"
       else
         reason="container exited with unexpected status $code"
