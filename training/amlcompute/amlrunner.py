@@ -22,7 +22,7 @@ import paramiko
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-ENV_FILE = BASE_DIR / ".env"
+ENV_FILE = BASE_DIR.parent / ".env"
 REMOTE_BOOTSTRAP = "/tmp/kuno-bootstrap.sh"
 LOCAL_BOOTSTRAP = BASE_DIR / "remote" / "bootstrap.sh"
 REMOTE_TRAINING_SCRIPT = "/tmp/run-training.sh"
@@ -111,6 +111,7 @@ def load_settings() -> dict[str, Any]:
         "ssh_user": ssh_user,
         "ssh_password": required_env("AML_SSH_PASSWORD"),
         "run_id": resolve_run_id(training_enabled),
+        "model": os.environ.get("KUNO_MODEL", "kuno-2b").strip(),
         "durable_path": os.environ.get(
             "KUNO_DURABLE_PATH", "/mnt/kuno-training"
         ).strip(),
@@ -382,6 +383,7 @@ def training_environment(
 ) -> str:
     values = {
         "KUNO_RUN_ID": settings["run_id"],
+        "KUNO_MODEL": settings.get("model", "kuno-2b"),
         "KUNO_DURABLE_PATH": settings["durable_path"],
         "KUNO_LOCAL_PATH": settings["local_path"],
         "KUNO_TRAINING_ENABLED": settings["training_enabled"],

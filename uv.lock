@@ -203,71 +203,6 @@ wheels = [
 ]
 
 [[package]]
-name = "kuno"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "numpy" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-]
-
-[package.optional-dependencies]
-aml = [
-    { name = "paramiko" },
-    { name = "python-dotenv" },
-]
-data = [
-    { name = "azure-identity" },
-    { name = "azure-storage-blob" },
-    { name = "datasets" },
-    { name = "filelock" },
-    { name = "tokenizers" },
-    { name = "transformers" },
-]
-eval = [
-    { name = "lm-eval" },
-]
-test = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-train = [
-    { name = "accelerate" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32'" },
-    { name = "torch", version = "2.10.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'emscripten' or sys_platform == 'win32'" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
-    { name = "transformers" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "accelerate", marker = "extra == 'train'", specifier = "==1.14.0" },
-    { name = "azure-identity", marker = "extra == 'data'", specifier = ">=1.23,<2" },
-    { name = "azure-storage-blob", marker = "extra == 'data'", specifier = ">=12.25,<13" },
-    { name = "datasets", marker = "extra == 'data'", specifier = "==4.6.1" },
-    { name = "filelock", marker = "extra == 'data'", specifier = ">=3.20,<4" },
-    { name = "lm-eval", marker = "extra == 'eval'", specifier = "==0.4.11" },
-    { name = "numpy", specifier = "==2.4.2" },
-    { name = "paramiko", marker = "extra == 'aml'", specifier = ">=3.5,<5" },
-    { name = "pydantic", specifier = "==2.12.5" },
-    { name = "pytest", marker = "extra == 'test'", specifier = "==9.0.2" },
-    { name = "pytest-cov", marker = "extra == 'test'", specifier = "==7.0.0" },
-    { name = "python-dotenv", marker = "extra == 'aml'", specifier = ">=1.0,<2" },
-    { name = "pyyaml", specifier = "==6.0.3" },
-    { name = "ruff", marker = "extra == 'test'", specifier = "==0.15.4" },
-    { name = "tokenizers", marker = "extra == 'data'", specifier = "==0.23.1" },
-    { name = "torch", marker = "sys_platform == 'linux' and extra == 'train'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cu128" },
-    { name = "torch", marker = "sys_platform != 'linux' and extra == 'train'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "transformers", marker = "extra == 'data'", specifier = "==5.16.1" },
-    { name = "transformers", marker = "extra == 'train'", specifier = "==5.16.1" },
-    { name = "ty", marker = "extra == 'test'", specifier = "==0.0.24" },
-]
-provides-extras = ["train", "data", "eval", "aml", "test"]
-
-[[package]]
 name = "bcrypt"
 version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -854,6 +789,77 @@ sdist = { url = "https://files.pythonhosted.org/packages/35/87/bcda8e46c88d0e34c
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f8/62/d9ba6323b9202dd2fe166beab8a86d29465c41a0288cbe229fac60c1ab8d/jsonlines-4.0.0-py3-none-any.whl", hash = "sha256:185b334ff2ca5a91362993f42e83588a360cf95ce4b71a73548502bda52a7c55", size = 8701, upload-time = "2023-09-01T12:34:42.563Z" },
 ]
+
+[[package]]
+name = "kuno"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "numpy" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+aml = [
+    { name = "paramiko" },
+    { name = "python-dotenv" },
+]
+data = [
+    { name = "azure-identity" },
+    { name = "azure-storage-blob" },
+    { name = "datasets" },
+    { name = "filelock" },
+    { name = "huggingface-hub" },
+    { name = "pyarrow" },
+    { name = "python-dotenv" },
+    { name = "tokenizers" },
+    { name = "transformers" },
+]
+eval = [
+    { name = "lm-eval" },
+]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "ty" },
+]
+train = [
+    { name = "accelerate" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32'" },
+    { name = "torch", version = "2.10.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'emscripten' or sys_platform == 'win32'" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
+    { name = "transformers" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "accelerate", marker = "extra == 'train'", specifier = "==1.14.0" },
+    { name = "azure-identity", marker = "extra == 'data'", specifier = ">=1.23,<2" },
+    { name = "azure-storage-blob", marker = "extra == 'data'", specifier = ">=12.25,<13" },
+    { name = "datasets", marker = "extra == 'data'", specifier = "==4.6.1" },
+    { name = "filelock", marker = "extra == 'data'", specifier = ">=3.20,<4" },
+    { name = "huggingface-hub", marker = "extra == 'data'", specifier = ">=1,<2" },
+    { name = "lm-eval", marker = "extra == 'eval'", specifier = "==0.4.11" },
+    { name = "numpy", specifier = "==2.4.2" },
+    { name = "paramiko", marker = "extra == 'aml'", specifier = ">=3.5,<5" },
+    { name = "pyarrow", marker = "extra == 'data'", specifier = ">=21,<26" },
+    { name = "pydantic", specifier = "==2.12.5" },
+    { name = "pytest", marker = "extra == 'test'", specifier = "==9.0.2" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = "==7.0.0" },
+    { name = "python-dotenv", marker = "extra == 'aml'", specifier = ">=1.0,<2" },
+    { name = "python-dotenv", marker = "extra == 'data'", specifier = ">=1,<2" },
+    { name = "pyyaml", specifier = "==6.0.3" },
+    { name = "ruff", marker = "extra == 'test'", specifier = "==0.15.4" },
+    { name = "tokenizers", marker = "extra == 'data'", specifier = "==0.23.1" },
+    { name = "torch", marker = "sys_platform == 'linux' and extra == 'train'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cu128" },
+    { name = "torch", marker = "sys_platform != 'linux' and extra == 'train'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "transformers", marker = "extra == 'data'", specifier = "==5.16.1" },
+    { name = "transformers", marker = "extra == 'train'", specifier = "==5.16.1" },
+    { name = "ty", marker = "extra == 'test'", specifier = "==0.0.24" },
+]
+provides-extras = ["train", "data", "eval", "aml", "test"]
 
 [[package]]
 name = "lm-eval"

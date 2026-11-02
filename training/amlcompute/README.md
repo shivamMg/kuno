@@ -16,7 +16,7 @@ You need:
 
 - Azure CLI signed in with access to AML, the storage account, and the container registry.
 - Python 3.10 or newer with `training/amlcompute/requirements.txt` installed.
-- A `.env` file based on `.env.example`.
+- A shared `training/.env` file based on `training/.env.example`, used by both AML compute and data preparation.
 - An SSH user that can run `sudo`.
 
 Set `AML_COMPUTE_RESOURCE_IDS` to a comma-separated list of AML compute resource IDs. The runner checks them in the order listed. All computes must use the same SSH credentials.
@@ -53,6 +53,20 @@ The logs include both the compute name and node ID. Logs are written to the term
 
 Training data is mounted with BlobFuse2 at `KUNO_DURABLE_PATH` (`/mnt/kuno-training` by default), and node-local scratch lives at `KUNO_LOCAL_PATH` (`/mnt/kuno-local` by default). Both directories are created by `bootstrap.sh` and owned by the service user. The runner checks the mount before training starts and repairs it when needed.
 
+`STORAGE_ACCOUNT_RESOURCE_ID` and `STORAGE_CONTAINER` select the storage account and container. The retained layout is:
+
+```text
+<container>/
+  heartbeats/<model>/<run-id>/<session-id>.jsonl
+  runs/                 # Run status, halt reports, and legacy run artifacts
+  preparation-probes/   # Storage upload probes
+  sanity/               # Existing storage checks
+  deployment.json
+  desired-run.json
+```
+
+`KUNO_MODEL` selects the heartbeat model namespace. Preparation and real training can recreate the `data/`, `checkpoints/`, `exports/`, and `logs/` prefixes when publishing artifacts.
+
 The storage account key is kept in `/etc/kuno-storage.env` on the node with permissions limited to root. It is not passed to the training container or written to the logs.
 
 ACR credentials remain in the controller's local `.env`. They are not copied into `/etc/kuno-training.env` or retained on the node after an image pull.
@@ -77,10 +91,8 @@ A **session** is one container execution on a compute/node. Each execution autom
 
 ## Compute heartbeats
 
-Production and dry-run containers append JSONL events to `KUNO_DURABLE_PATH/<run_id>/heartbeats/<session_id>.jsonl`, directly under the durable mount. For example, `run_training_001/heartbeats/session_abc123.jsonl`. Each session has its own file and one writer; previous session files are never changed by replacements. Existing status and checkpoint paths are unchanged.
+Production and dry-run containers append JSONL events to `KUNO_DURABLE_PATH/heartbeats/<model>/<run-id>/<session-id>.jsonl`. For example, `heartbeats/model-base/run_training_001/session_abc123.jsonl`. Each session has its own file and one writer; previous session files are never changed by replacements. Run status remains under `runs/<run-id>/`.
 
-The log contains `START`, `HEARTBEAT` every 60 seconds while the workload process is alive, and `STOP` on normal or graceful termination. Events include a UTC timestamp, sequence number, run/session IDs, compute resource ID, node ID, image digest, and dry-run flag. `STOP` also records the exit code and reason. Each line is appended, flushed, fsynced, and closed through BlobFuse; storage credentials remain on the node host.
+The log contains `START`, `HEARTBEAT` every 60 seconds while the workload process is alive, and `STOP` on normal or graceful termination. Events include a UTC timestamp, sequence number, model, run/session IDs, compute resource ID, node ID, image digest, and dry-run flag. `STOP` also records the exit code and reason. Each line is appended, flushed, fsynced, and closed through BlobFuse; storage credentials remain on the node host.
 
 An abruptly lost session has no `STOP`; no end timestamp or duration is fabricated. Missing heartbeats mean stale/unknown, not proof of preemption or training progress. Storage outages, upload delays, and hangs can also cause gaps. Readers should ignore an incomplete trailing line. These logs describe workload liveness, not Azure allocation or billing time.
-
-The previous compute-usage snapshot implementation is removed. Historical `compute-usage` records are left untouched and are no longer updated.

@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 .env
 **/.env
+training/data/corpus_raw/
+training/data/corpus_prepared/

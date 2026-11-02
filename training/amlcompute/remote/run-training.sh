@@ -185,6 +185,7 @@ launch_container() {
     --name "$CONTAINER_NAME"
     --user "$(id -u):$(id -g)"
     -e "KUNO_RUN_ID=$KUNO_RUN_ID"
+    -e "KUNO_MODEL=${KUNO_MODEL:-kuno-2b}"
     -e "KUNO_COMPUTE_ID=${KUNO_COMPUTE_ID:-}"
     -e "KUNO_NODE_ID=${KUNO_NODE_ID:-}"
     -e "KUNO_IMAGE=$KUNO_IMAGE"

@@ -23,7 +23,10 @@ data = [
   "azure-identity>=1.23,<2",
   "azure-storage-blob>=12.25,<13",
   "filelock>=3.20,<4",
+  "huggingface-hub>=1,<2",
   "datasets==4.6.1",
+  "pyarrow>=21,<26",
+  "python-dotenv>=1,<2",
   "tokenizers==0.23.1",
   "transformers==5.16.1",
 ]
